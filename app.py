@@ -22,7 +22,7 @@ async def handle_websocket(websocket, path):
         print(f"Erro: {e}")
 
 async def main():
-    server = await websockets.serve(handle_websocket, "localhost", 2606)
+    server = await websockets.serve(handle_websocket, "185.199.111.153t", 2606)
     print("Servidor WebSocket iniciado em ws://localhost:5500")
     await server.wait_closed()
 
