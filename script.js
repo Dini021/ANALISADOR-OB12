@@ -9,7 +9,7 @@ document.getElementById('analyzeButton').addEventListener('click', () => {
 
     status.textContent = 'Conectando...';
 
-    const ws = new WebSocket('ws://localhost:2606');
+    const ws = new WebSocket('ws://localhost:5500');
 
     ws.onopen = () => {
         console.log('Conectado ao servidor WebSocket');
@@ -20,16 +20,21 @@ document.getElementById('analyzeButton').addEventListener('click', () => {
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        // Formate os dados recebidos
-        const formattedData = [{
-            x: new Date(data.time),
-            o: data.open,
-            h: data.high,
-            l: data.low,
-            c: data.close
-        }];
-        updateChart(formattedData);
-        status.textContent = 'Dados atualizados.';
+        // Verifica se os dados são válidos
+        if (data.time && data.open !== undefined && data.high !== undefined && data.low !== undefined && data.close !== undefined) {
+            const formattedData = [{
+                x: new Date(data.time),
+                o: data.open,
+                h: data.high,
+                l: data.low,
+                c: data.close
+            }];
+            updateChart(formattedData);
+            status.textContent = 'Dados atualizados.';
+        } else {
+            console.error('Dados inválidos recebidos:', data);
+            status.textContent = 'Dados recebidos são inválidos.';
+        }
     };
 
     ws.onerror = (error) => {
