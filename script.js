@@ -9,7 +9,7 @@ document.getElementById('analyzeButton').addEventListener('click', () => {
 
     status.textContent = 'Conectando...';
 
-    const ws = new WebSocket('ws://localhost:5500');
+    const ws = new WebSocket('185.199.111.153');
 
     ws.onopen = () => {
         console.log('Conectado ao servidor WebSocket');
