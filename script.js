@@ -1,90 +1,104 @@
 document.getElementById('analyzeButton').addEventListener('click', () => {
     const link = document.getElementById('linkInput').value;
     const status = document.getElementById('status');
+    const recommendation = document.getElementById('recommendation');
 
     if (!link) {
         status.textContent = 'Por favor, cole um link.';
         return;
     }
 
-    status.textContent = 'Conectando...';
+    status.textContent = 'Buscando dados...';
 
-    const ws = new WebSocket('185.199.111.153');
-
-    ws.onopen = () => {
-        console.log('Conectado ao servidor WebSocket');
-        status.textContent = 'Conectado ao WebSocket';
-        // Envia uma mensagem para o servidor WebSocket
-        ws.send(JSON.stringify({ action: 'subscribe', link: link }));
-    };
-
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        // Verifica se os dados são válidos
-        if (data.time && data.open !== undefined && data.high !== undefined && data.low !== undefined && data.close !== undefined) {
-            const formattedData = [{
-                x: new Date(data.time),
-                o: data.open,
-                h: data.high,
-                l: data.low,
-                c: data.close
-            }];
-            updateChart(formattedData);
-            status.textContent = 'Dados atualizados.';
-        } else {
-            console.error('Dados inválidos recebidos:', data);
-            status.textContent = 'Dados recebidos são inválidos.';
+    async function fetchData() {
+        try {
+            const response = await fetch(link);
+            if (!response.ok) {
+                throw new Error('Erro ao buscar dados: ' + response.statusText);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Erro ao buscar dados:', error);
+            status.textContent = 'Erro ao buscar dados.';
+            return null;
         }
-    };
+    }
 
-    ws.onerror = (error) => {
-        console.error('WebSocket erro:', error);
-        status.textContent = 'Erro ao conectar ao servidor WebSocket.';
-    };
+    function analyzeData(data) {
+        if (data.length < 2) return 'Nenhuma análise disponível';
 
-    ws.onclose = () => {
-        console.log('Desconectado do servidor WebSocket');
-        status.textContent = 'Desconectado do WebSocket';
-    };
-});
+        const lastData = data[data.length - 1];
+        const prevData = data[data.length - 2];
 
-function updateChart(data) {
-    const ctx = document.getElementById('marketChart').getContext('2d');
+        return lastData.c > prevData.c ? 'Compra' : 'Venda';
+    }
 
-    new Chart(ctx, {
-        type: 'candlestick',
-        data: {
-            datasets: [{
-                label: 'Candlestick',
-                data: data,
-                borderColor: 'rgba(0, 0, 0, 0.7)',
-                color: {
-                    up: 'rgba(76, 175, 80, 1)', // Verde para alta
-                    down: 'rgba(244, 67, 54, 1)' // Vermelho para baixa
-                },
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'minute'
+    function updateChart(data) {
+        const ctx = document.getElementById('marketChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'candlestick',
+            data: {
+                datasets: [{
+                    label: 'Candlestick',
+                    data: data,
+                    borderColor: 'rgba(0, 0, 0, 0.7)',
+                    color: {
+                        up: 'rgba(76, 175, 80, 1)', // Verde para alta
+                        down: 'rgba(244, 67, 54, 1)' // Vermelho para baixa
                     },
-                    title: {
-                        display: true,
-                        text: 'Tempo'
-                    }
-                },
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Preço'
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Tempo'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Preço'
+                        }
                     }
                 }
             }
+        });
+    }
+
+    async function refreshData() {
+        const data = await fetchData();
+        if (data) {
+            const formattedData = data.map(item => ({
+                x: new Date(item.time),
+                o: item.open,
+                h: item.high,
+                l: item.low,
+                c: item.close
+            }));
+            updateChart(formattedData);
+            recommendation.textContent = `Recomendação: ${analyzeData(formattedData)}`;
+            status.textContent = 'Dados atualizados.';
         }
+    }
+
+    // Atualiza os dados a cada 10 segundos
+    const updateInterval = setInterval(refreshData, 10000);
+
+    // Para a atualização ao sair da página
+    window.addEventListener('beforeunload', () => {
+        clearInterval(updateInterval);
     });
-}
+
+    // Inicializa a primeira chamada
+    refreshData();
+});
